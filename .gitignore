@@ -1,4 +1,10 @@
+# macOS Finder metadata
+.DS_Store
+
+# release/build output
 dist/
 *.tar.gz
 *.out
+
+# local binary built in the repo root
 /codex-auth
