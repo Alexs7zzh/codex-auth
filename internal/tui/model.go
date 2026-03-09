@@ -35,9 +35,9 @@ var (
 	styleLive    = lipgloss.NewStyle().Foreground(lipgloss.Color("5")).Bold(true)
 	styleDelete  = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
 	styleCursor  = lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
-	styleKey     = lipgloss.NewStyle().Bold(true).Reverse(true).Padding(0, 1)
-	styleKeyBlue = lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true).Reverse(true).Padding(0, 1)
-	styleKeyRed  = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true).Reverse(true).Padding(0, 1)
+	styleKey     = lipgloss.NewStyle().Bold(true)
+	styleKeyBlue = lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
+	styleKeyRed  = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
 	styleBarOn   = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
 	styleBarOff  = lipgloss.NewStyle().Faint(true)
 	styleBarWarn = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Faint(true)
@@ -260,26 +260,33 @@ func (m Model) View() string {
 }
 
 func renderKeyLegend() []string {
-	line1 := []string{
-		styleKey.Render("↑/↓"),
-		styleDim.Render("move"),
-		styleKeyBlue.Render("Space"),
-		styleDim.Render("mark switch target"),
-		styleKey.Render("Enter"),
-		styleDim.Render("confirm"),
-	}
-	line2 := []string{
-		styleKey.Render("E"),
-		styleDim.Render("save / rename"),
-		styleKeyRed.Render("D"),
-		styleDim.Render("delete"),
-		styleKey.Render("Esc"),
-		styleDim.Render("close"),
-	}
 	return []string{
-		strings.Join(line1, "  "),
-		strings.Join(line2, "  "),
+		renderKeyLegendLine(
+			keyLegendItem{style: styleKey, key: "↑/↓", desc: "move"},
+			keyLegendItem{style: styleKeyBlue, key: "Space", desc: "mark switch"},
+			keyLegendItem{style: styleKey, key: "Enter", desc: "confirm"},
+		),
+		renderKeyLegendLine(
+			keyLegendItem{style: styleKey, key: "E / I", desc: "save or rename"},
+			keyLegendItem{style: styleKeyRed, key: "D", desc: "delete"},
+			keyLegendItem{style: styleKey, key: "Esc", desc: "close"},
+		),
 	}
+}
+
+type keyLegendItem struct {
+	style lipgloss.Style
+	key   string
+	desc  string
+}
+
+func renderKeyLegendLine(items ...keyLegendItem) string {
+	parts := make([]string, 0, len(items))
+	for _, item := range items {
+		key := item.style.Render(fmt.Sprintf("%-7s", item.key))
+		parts = append(parts, fmt.Sprintf("%s %s", key, styleDim.Render(item.desc)))
+	}
+	return strings.Join(parts, "   ")
 }
 
 func (m Model) renderAccount(index int, account store.Account) []string {
