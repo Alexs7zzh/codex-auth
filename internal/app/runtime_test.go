@@ -23,7 +23,7 @@ func (s stubProvider) Fetch(context.Context, authfile.File) (quota.Snapshot, err
 	return s.snapshot, s.err
 }
 
-func TestLoadCreatesUnmanagedCurrentRow(t *testing.T) {
+func TestLoadAutoSavesCurrentRow(t *testing.T) {
 	home := t.TempDir()
 	writeAuthFixture(t, home, "auth.json", authFixture{
 		email:     "current@example.com",
@@ -49,8 +49,8 @@ func TestLoadCreatesUnmanagedCurrentRow(t *testing.T) {
 	for _, account := range accounts {
 		if account.Current {
 			currentFound = true
-			if account.Saved {
-				t.Fatalf("expected current account to be unmanaged")
+			if !account.Saved {
+				t.Fatalf("expected current account to be auto-saved")
 			}
 			if account.DisplayName != "current@example.com" {
 				t.Fatalf("unexpected default label %q", account.DisplayName)
@@ -58,7 +58,11 @@ func TestLoadCreatesUnmanagedCurrentRow(t *testing.T) {
 		}
 	}
 	if !currentFound {
-		t.Fatal("expected unmanaged current account")
+		t.Fatal("expected current account")
+	}
+
+	if _, err := os.Stat(filepath.Join(home, "accounts", "current@example.com.json")); err != nil {
+		t.Fatalf("expected auto-saved account file: %v", err)
 	}
 }
 

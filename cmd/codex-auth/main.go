@@ -22,9 +22,9 @@ func main() {
 			fmt.Println("")
 			fmt.Println("Keys:")
 			fmt.Println("  Up/Down or j/k  Move selection")
-			fmt.Println("  Space           Mark switch target")
-			fmt.Println("  Enter           Confirm switch, save, delete, or exit")
-			fmt.Println("  e or i          Edit/save account name")
+			fmt.Println("  Space           Switch")
+			fmt.Println("  Enter           Confirm switch, rename, delete, or exit")
+			fmt.Println("  e               Rename account")
 			fmt.Println("  d               Delete selected saved account")
 			fmt.Println("  Esc or q        Close")
 			return

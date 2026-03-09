@@ -147,7 +147,7 @@ func (m Model) updateKey(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case " ":
 		m.markedKey = m.selected().Key
 		m.errorText = ""
-	case "e", "i":
+	case "e":
 		selected := m.selected()
 		m.mode = modeEdit
 		m.input.SetValue(selected.DisplayName)
@@ -263,11 +263,11 @@ func renderKeyLegend() []string {
 	return []string{
 		renderKeyLegendLine(
 			keyLegendItem{style: styleKey, key: "↑/↓", desc: "move"},
-			keyLegendItem{style: styleKeyBlue, key: "Space", desc: "mark switch"},
+			keyLegendItem{style: styleKeyBlue, key: "Space", desc: "switch"},
 			keyLegendItem{style: styleKey, key: "Enter", desc: "confirm"},
 		),
 		renderKeyLegendLine(
-			keyLegendItem{style: styleKey, key: "E / I", desc: "save or rename"},
+			keyLegendItem{style: styleKey, key: "E", desc: "rename"},
 			keyLegendItem{style: styleKeyRed, key: "D", desc: "delete"},
 			keyLegendItem{style: styleKey, key: "Esc", desc: "close"},
 		),

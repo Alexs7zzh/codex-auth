@@ -32,6 +32,17 @@ func Load(home string, provider quota.Provider) (*Runtime, []store.Account, stri
 		return nil, nil, "", err
 	}
 
+	runtime := &Runtime{
+		store:    fileStore,
+		provider: provider,
+		state:    discovery.State,
+	}
+
+	discovery.Accounts, err = runtime.autoSaveCurrent(discovery.Accounts)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
 	if localSnapshot, ok := quota.LoadRecentLocalSnapshot(home); ok {
 		for i := range discovery.Accounts {
 			if discovery.Accounts[i].Current && !discovery.Accounts[i].Quota.HasData {
@@ -41,11 +52,7 @@ func Load(home string, provider quota.Provider) (*Runtime, []store.Account, stri
 	}
 
 	warning := codexWarning()
-	return &Runtime{
-		store:    fileStore,
-		provider: provider,
-		state:    discovery.State,
-	}, discovery.Accounts, warning, nil
+	return runtime, discovery.Accounts, warning, nil
 }
 
 func (r *Runtime) RefreshAll(ctx context.Context, accounts []store.Account) map[string]quota.Snapshot {
@@ -250,4 +257,36 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func (r *Runtime) autoSaveCurrent(accounts []store.Account) ([]store.Account, error) {
+	for _, account := range accounts {
+		if !account.Current || account.Saved {
+			continue
+		}
+
+		alias := nextAutoAlias(accounts, account.DefaultLabel)
+		updated, err := r.CommitAlias(accounts, account, alias)
+		if err != nil {
+			return nil, err
+		}
+		return replaceAccount(accounts, updated), nil
+	}
+	return accounts, nil
+}
+
+func nextAutoAlias(accounts []store.Account, base string) string {
+	base = strings.TrimSpace(base)
+	if err := store.ValidateAlias(base); err != nil {
+		base = "account"
+	}
+	if !duplicateAlias(accounts, store.Account{}, base) {
+		return base
+	}
+	for index := 2; ; index++ {
+		candidate := fmt.Sprintf("%s-%d", base, index)
+		if !duplicateAlias(accounts, store.Account{}, candidate) {
+			return candidate
+		}
+	}
 }
