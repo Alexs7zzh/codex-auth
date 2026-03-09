@@ -14,12 +14,14 @@ The app is intentionally:
 ## Local Development
 
 Prefer local builds for development work instead of the Homebrew-installed binary.
+When you build locally for verification, update the shell-visible binary at
+`/Users/alex/.local/bin/codex-auth` so running `codex-auth` uses the current workspace code.
 
 Useful commands:
 
 ```bash
 go test ./...
-go build ./cmd/codex-auth
+go build -o /Users/alex/.local/bin/codex-auth ./cmd/codex-auth
 go run ./cmd/codex-auth
 ```
 
