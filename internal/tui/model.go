@@ -92,6 +92,7 @@ func Run(ctx context.Context, model Model) error {
 	_ = ctx
 	program := tea.NewProgram(model)
 	_, err := program.Run()
+	fmt.Println()
 	return err
 }
 
