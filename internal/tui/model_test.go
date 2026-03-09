@@ -166,8 +166,8 @@ func TestViewShowsCachedQuotaWhileLiveRefreshIsLoading(t *testing.T) {
 	if strings.Contains(view, "checking quota") {
 		t.Fatal("expected cached quota lines to stay visible while loading")
 	}
-	if !strings.Contains(view, "40%") {
-		t.Fatal("expected cached quota percentage to be rendered")
+	if !strings.Contains(view, "60% left") {
+		t.Fatal("expected remaining cached quota percentage to be rendered")
 	}
 }
 

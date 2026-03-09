@@ -344,13 +344,25 @@ func renderQuotaLine(window quota.Window, snapshot quota.Snapshot, fallbackLabel
 		return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  quota unavailable", label, renderSkeletonBar(10)))
 	}
 
-	bar := renderBar(window.UsedPercent, 10)
-	percent := styleDim.Render(fmt.Sprintf("%3.0f%%", window.UsedPercent))
+	remaining := remainingPercent(window.UsedPercent)
+	bar := renderBar(remaining, 10)
+	percent := styleDim.Render(fmt.Sprintf("%3.0f%% left", remaining))
 	resetText := "reset unknown"
 	if !window.ResetsAt.IsZero() {
 		resetText = "resets " + window.ResetsAt.Local().Format("Jan _2 15:04")
 	}
 	return fmt.Sprintf("  %-3s %s  %s  %s", label, bar, percent, styleDim.Render(resetText))
+}
+
+func remainingPercent(usedPercent float64) float64 {
+	remaining := 100 - usedPercent
+	if remaining < 0 {
+		return 0
+	}
+	if remaining > 100 {
+		return 100
+	}
+	return remaining
 }
 
 func renderBar(percent float64, width int) string {
