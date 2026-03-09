@@ -352,7 +352,7 @@ func (m Model) renderAccount(index int, account store.Account) []string {
 }
 
 func renderQuotaLine(window quota.Window, snapshot quota.Snapshot, fallbackLabel string) string {
-	const quotaBarWidth = 14
+	const quotaBarWidth = 18
 	label := fallbackLabel
 	if window.Label != "" {
 		label = window.Label
