@@ -1,0 +1,23 @@
+class CodexAuth < Formula
+  desc "Interactive local Codex account switcher"
+  homepage "https://github.com/REPO_OWNER/REPO_NAME"
+  version "RELEASE_VERSION"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/REPO_OWNER/REPO_NAME/releases/download/v#{version}/codex-auth_v#{version}_darwin_arm64.tar.gz"
+      sha256 "DARWIN_ARM64_SHA256"
+    else
+      url "https://github.com/REPO_OWNER/REPO_NAME/releases/download/v#{version}/codex-auth_v#{version}_darwin_amd64.tar.gz"
+      sha256 "DARWIN_AMD64_SHA256"
+    end
+  end
+
+  def install
+    bin.install "codex-auth"
+  end
+
+  test do
+    assert_match "codex-auth", shell_output("#{bin}/codex-auth --help 2>&1", 1)
+  end
+end
