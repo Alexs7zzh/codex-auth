@@ -2,37 +2,89 @@
 
 `codex-auth` is a standalone Go TUI for switching between multiple local Codex authentication snapshots in `~/.codex`.
 
-## Features
+## What It Does
 
-- Discovers saved accounts from `~/.codex/accounts/*.json`
-- Detects the active unmanaged `auth.json` and shows it as an unsaved row
-- Saves or renames accounts inline with `e` or `i`
-- Deletes saved accounts inline with `d`
-- Switches accounts with `Space` plus `Enter`
-- Loads cached quota immediately and attempts best-effort background refresh
+- Discovers managed accounts from `~/.codex/accounts/*.json`
+- Detects the active `~/.codex/auth.json`
+- Auto-saves the active account if it is not already managed
+- Switches accounts from a single interactive screen
+- Renames accounts inline
+- Deletes managed accounts inline
+- Shows quota immediately from local state and refreshes live data in the background
 
-## Run locally
+## Install
+
+### Homebrew
+
+Preferred install path, once you publish your tap:
 
 ```bash
-go run ./cmd/codex-auth
+brew install YOUR_GITHUB_USER/homebrew-tap/codex-auth
+```
+
+Or:
+
+```bash
+brew tap YOUR_GITHUB_USER/homebrew-tap
+brew install codex-auth
+```
+
+### GitHub Release Download
+
+Every tagged release uploads macOS tarballs to GitHub Releases:
+
+- `codex-auth_v0.1.0_darwin_arm64.tar.gz`
+- `codex-auth_v0.1.0_darwin_amd64.tar.gz`
+
+You can unpack one manually and move `codex-auth` somewhere on your `PATH`, for example:
+
+```bash
+tar -xzf codex-auth_v0.1.0_darwin_arm64.tar.gz
+mv codex-auth_v0.1.0_darwin_arm64/codex-auth ~/.local/bin/codex-auth
+```
+
+### Build From Source
+
+```bash
+go build -o codex-auth ./cmd/codex-auth
+```
+
+## Usage
+
+```bash
+codex-auth
 ```
 
 ## Keys
 
 - `Up/Down` or `j/k`: move
-- `Space`: mark switch target
-- `Enter`: confirm switch, save, delete, or exit
-- `e` or `i`: edit/save account name
-- `d`: delete selected saved account
+- `Space`: switch
+- `Enter`: confirm switch, rename, delete, or exit
+- `e`: rename
+- `d`: delete selected managed account
 - `Esc` or `q`: close
 
-## Release
+## Release Flow
 
-Tagging the repository with `v*` triggers `.github/workflows/release.yml`, which:
+Tagging the repository with `v*` triggers [.github/workflows/release.yml](.github/workflows/release.yml), which:
 
 - runs `go test ./...`
-- builds macOS `arm64` and `amd64` archives
+- builds macOS `arm64` and `amd64` tarballs
+- injects the tag into `main.version`
 - generates `checksums.txt`
-- publishes a GitHub Release
+- renders a Homebrew formula file for the release
+- publishes a GitHub Release with those assets attached
 
-`packaging/homebrew/codex-auth.rb.tmpl` is a separate-tap formula template with repo and SHA placeholders.
+## Homebrew Tap Setup
+
+This repository ships the binary release assets. The Homebrew formula should live in a separate tap repository, typically named `homebrew-tap`.
+
+Recommended setup:
+
+```bash
+brew tap-new YOUR_GITHUB_USER/homebrew-tap
+```
+
+Then push that tap repository to GitHub and add a formula under `Formula/codex-auth.rb`.
+
+The template for that formula lives at [packaging/homebrew/codex-auth.rb.tmpl](packaging/homebrew/codex-auth.rb.tmpl). Each tagged release will also attach a rendered `codex-auth.rb` file to the GitHub Release so you can copy it directly into the tap repository.
