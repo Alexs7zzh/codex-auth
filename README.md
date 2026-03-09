@@ -16,16 +16,16 @@
 
 ### Homebrew
 
-Preferred install path, once you publish your tap:
+Preferred install path:
 
 ```bash
-brew install Alexs7zzh/homebrew-tap/codex-auth
+brew install Alexs7zzh/tap/codex-auth
 ```
 
 Or:
 
 ```bash
-brew tap Alexs7zzh/homebrew-tap
+brew tap Alexs7zzh/tap
 brew install codex-auth
 ```
 
@@ -74,17 +74,3 @@ Tagging the repository with `v*` triggers [.github/workflows/release.yml](.githu
 - generates `checksums.txt`
 - renders a Homebrew formula file for the release
 - publishes a GitHub Release with those assets attached
-
-## Homebrew Tap Setup
-
-This repository ships the binary release assets. The Homebrew formula should live in a separate tap repository, typically named `homebrew-tap`.
-
-Recommended setup:
-
-```bash
-brew tap-new Alexs7zzh/homebrew-tap
-```
-
-Then push that tap repository to GitHub and add a formula under `Formula/codex-auth.rb`.
-
-The template for that formula lives at [packaging/homebrew/codex-auth.rb.tmpl](packaging/homebrew/codex-auth.rb.tmpl). Each tagged release will also attach a rendered `codex-auth.rb` file to the GitHub Release so you can copy it directly into the tap repository.
