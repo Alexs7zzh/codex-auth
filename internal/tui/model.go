@@ -94,11 +94,8 @@ func NewModel(controller appController, accounts []store.Account, warning string
 
 func Run(ctx context.Context, model Model) error {
 	_ = ctx
-	program := tea.NewProgram(model, tea.WithAltScreen())
-	finalModel, err := program.Run()
-	if rendered, ok := finalModel.(Model); ok {
-		fmt.Print(rendered.View())
-	}
+	program := tea.NewProgram(model)
+	_, err := program.Run()
 	fmt.Println()
 	return err
 }
@@ -267,6 +264,7 @@ func (m Model) View() string {
 		}
 		lines = append(lines, m.renderAccount(index, account)...)
 	}
+	lines = append(lines, "")
 
 	return strings.Join(lines, "\n")
 }

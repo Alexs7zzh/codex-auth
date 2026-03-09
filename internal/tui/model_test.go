@@ -153,8 +153,8 @@ func TestViewAddsPaddingBetweenAccounts(t *testing.T) {
 		}
 	}
 
-	if blankLines < 2 {
-		t.Fatalf("expected one blank line before list and one between accounts, got %d", blankLines)
+	if blankLines < 3 {
+		t.Fatalf("expected blank lines before list, between accounts, and at bottom, got %d", blankLines)
 	}
 }
 
