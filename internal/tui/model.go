@@ -27,7 +27,7 @@ var (
 	styleWarning = lipgloss.NewStyle().Foreground(lipgloss.Color("228")).Bold(true)
 	styleError   = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true)
 	styleInfo    = lipgloss.NewStyle().Foreground(lipgloss.Color("109"))
-	styleName    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("255"))
+	styleName    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51"))
 	styleDim     = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
 	styleCurrent = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
 	styleTarget  = lipgloss.NewStyle().Foreground(lipgloss.Color("81")).Bold(true)
@@ -275,12 +275,6 @@ func (m Model) renderAccount(index int, account store.Account) []string {
 	}
 
 	statusBits := []string{}
-	if account.Current {
-		statusBits = append(statusBits, styleCurrent.Render("● current"))
-	}
-	if m.markedKey == account.Key && !account.Current {
-		statusBits = append(statusBits, styleTarget.Render("○ switch"))
-	}
 	if account.Saved {
 		statusBits = append(statusBits, styleSaved.Render("saved"))
 	} else {
@@ -288,6 +282,12 @@ func (m Model) renderAccount(index int, account store.Account) []string {
 	}
 	if plan := strings.TrimSpace(account.Meta.PlanType); plan != "" {
 		statusBits = append(statusBits, styleDim.Render(strings.ToUpper(plan)))
+	}
+	if account.Current {
+		statusBits = append(statusBits, styleCurrent.Render("● current"))
+	}
+	if m.markedKey == account.Key && !account.Current {
+		statusBits = append(statusBits, styleTarget.Render("○ switch"))
 	}
 
 	label := styleName.Render(account.DisplayName)
@@ -324,7 +324,7 @@ func renderQuotaLine(window quota.Window, snapshot quota.Snapshot, fallbackLabel
 		return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  checking quota", label, renderSkeletonBar(10)))
 	}
 	if !snapshot.HasData {
-		return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  no local quota snapshot", label, renderSkeletonBar(10)))
+		return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  no recent local usage", label, renderSkeletonBar(10)))
 	}
 
 	bar := renderBar(window.UsedPercent, 10)
