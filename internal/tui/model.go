@@ -283,10 +283,16 @@ type keyLegendItem struct {
 func renderKeyLegendLine(items ...keyLegendItem) string {
 	parts := make([]string, 0, len(items))
 	for _, item := range items {
-		key := item.style.Render(fmt.Sprintf("%-7s", item.key))
-		parts = append(parts, fmt.Sprintf("%s %s", key, styleDim.Render(item.desc)))
+		parts = append(parts, renderKeyLegendCell(item))
 	}
-	return strings.Join(parts, "   ")
+	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
+}
+
+func renderKeyLegendCell(item keyLegendItem) string {
+	keyColumn := lipgloss.NewStyle().Width(7).Render(item.style.Render(item.key))
+	descColumn := lipgloss.NewStyle().Width(14).Render(styleDim.Render(item.desc))
+	cell := lipgloss.JoinHorizontal(lipgloss.Top, keyColumn, " ", descColumn)
+	return lipgloss.NewStyle().Width(24).Render(cell)
 }
 
 func (m Model) renderAccount(index int, account store.Account) []string {
