@@ -60,6 +60,30 @@ type liveWindow struct {
 	ResetsAt      int64   `json:"resets_at"`
 }
 
+type whamResponse struct {
+	PlanType  string     `json:"plan_type"`
+	RateLimit whamLimits `json:"rate_limit"`
+	Credits   struct {
+		HasCredits bool   `json:"has_credits"`
+		Unlimited  bool   `json:"unlimited"`
+		Balance    string `json:"balance"`
+	} `json:"credits"`
+}
+
+type whamLimits struct {
+	Allowed         bool       `json:"allowed"`
+	LimitReached    bool       `json:"limit_reached"`
+	PrimaryWindow   whamWindow `json:"primary_window"`
+	SecondaryWindow whamWindow `json:"secondary_window"`
+}
+
+type whamWindow struct {
+	UsedPercent       float64 `json:"used_percent"`
+	LimitWindowSecond int     `json:"limit_window_seconds"`
+	ResetAfterSeconds int64   `json:"reset_after_seconds"`
+	ResetAt           int64   `json:"reset_at"`
+}
+
 func NewLiveProvider() Provider {
 	return &LiveProvider{
 		client: &http.Client{Timeout: 6 * time.Second},
@@ -97,6 +121,7 @@ func (p *LiveProvider) Fetch(ctx context.Context, file authfile.File) (Snapshot,
 	}
 
 	urls := []string{
+		"https://chatgpt.com/backend-api/wham/usage",
 		"https://chatgpt.com/api/codex/usage",
 		"https://chatgpt.com/backend-api/codex/usage",
 	}
@@ -125,7 +150,7 @@ func (p *LiveProvider) fetchURL(ctx context.Context, file authfile.File, endpoin
 	request.Header.Set("Authorization", "Bearer "+file.Tokens.AccessToken)
 	request.Header.Set("ChatGPT-Account-Id", file.Tokens.AccountID)
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("User-Agent", "codex-auth/0.1")
+	request.Header.Set("User-Agent", "codex-cli/0.111.0")
 
 	response, err := p.client.Do(request)
 	if err != nil {
@@ -143,6 +168,24 @@ func (p *LiveProvider) fetchURL(ctx context.Context, file authfile.File, endpoin
 			return Snapshot{}, fmt.Errorf("upstream denied quota request")
 		}
 		return Snapshot{}, fmt.Errorf("usage request failed: %s", response.Status)
+	}
+
+	if strings.Contains(endpoint, "/wham/usage") {
+		var payload whamResponse
+		if err := json.Unmarshal(body, &payload); err != nil {
+			return Snapshot{}, fmt.Errorf("decode wham usage response: %w", err)
+		}
+		if payload.RateLimit.PrimaryWindow.LimitWindowSecond == 0 {
+			return Snapshot{}, fmt.Errorf("wham usage response missing windows")
+		}
+		return Snapshot{
+			Primary:   normalizeWhamWindow("5h", payload.RateLimit.PrimaryWindow),
+			Secondary: normalizeWhamWindow("7d", payload.RateLimit.SecondaryWindow),
+			PlanType:  strings.ToLower(payload.PlanType),
+			CheckedAt: time.Now().UTC(),
+			Source:    "live",
+			HasData:   true,
+		}, nil
 	}
 
 	var payload liveResponse
@@ -178,6 +221,15 @@ func normalizeWindow(label string, window liveWindow) Window {
 		UsedPercent:   window.UsedPercent,
 		WindowMinutes: window.WindowMinutes,
 		ResetsAt:      time.Unix(window.ResetsAt, 0).UTC(),
+	}
+}
+
+func normalizeWhamWindow(label string, window whamWindow) Window {
+	return Window{
+		Label:         label,
+		UsedPercent:   window.UsedPercent,
+		WindowMinutes: window.LimitWindowSecond / 60,
+		ResetsAt:      time.Unix(window.ResetAt, 0).UTC(),
 	}
 }
 

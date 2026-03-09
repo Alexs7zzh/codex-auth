@@ -43,6 +43,8 @@ var (
 	styleBarWarn = lipgloss.NewStyle().Foreground(lipgloss.Color("221"))
 )
 
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
 type appController interface {
 	RefreshAll(context.Context, []store.Account) map[string]quota.Snapshot
 	CommitAlias([]store.Account, store.Account, string) (store.Account, error)
@@ -59,9 +61,11 @@ type Model struct {
 	input      textinput.Model
 	errorText  string
 	warning    string
+	spinner    int
 }
 
 type refreshDoneMsg map[string]quota.Snapshot
+type spinnerTickMsg struct{}
 
 func NewModel(controller appController, accounts []store.Account, warning string) Model {
 	input := textinput.New()
@@ -71,9 +75,14 @@ func NewModel(controller appController, accounts []store.Account, warning string
 	input.TextStyle = styleName
 	input.Placeholder = "account name"
 
+	bootAccounts := append([]store.Account(nil), accounts...)
+	for i := range bootAccounts {
+		bootAccounts[i].Quota.Loading = true
+	}
+
 	return Model{
 		controller: controller,
-		accounts:   accounts,
+		accounts:   bootAccounts,
 		input:      input,
 		warning:    warning,
 	}
@@ -88,11 +97,14 @@ func Run(ctx context.Context, model Model) error {
 
 func (m Model) Init() tea.Cmd {
 	accounts := append([]store.Account(nil), m.accounts...)
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		return refreshDoneMsg(m.controller.RefreshAll(ctx, accounts))
-	}
+	return tea.Batch(
+		func() tea.Msg {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			return refreshDoneMsg(m.controller.RefreshAll(ctx, accounts))
+		},
+		spinnerTickCmd(),
+	)
 }
 
 func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
@@ -104,6 +116,11 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if snapshot, ok := message[m.accounts[i].Key]; ok {
 				m.accounts[i].Quota = snapshot
 			}
+		}
+	case spinnerTickMsg:
+		if m.anyLoading() {
+			m.spinner = (m.spinner + 1) % len(spinnerFrames)
+			return m, spinnerTickCmd()
 		}
 	case tea.WindowSizeMsg:
 	}
@@ -229,9 +246,6 @@ func (m Model) View() string {
 	if m.warning != "" {
 		lines = append(lines, styleWarning.Render("Warning: "+m.warning))
 	}
-	if info := m.quotaInfo(); info != "" {
-		lines = append(lines, styleInfo.Render(info))
-	}
 	lines = append(lines, renderKeyLegend()...)
 	if m.errorText != "" {
 		lines = append(lines, styleError.Render(m.errorText))
@@ -298,6 +312,9 @@ func (m Model) renderAccount(index int, account store.Account) []string {
 	if len(statusBits) > 0 {
 		header += "  " + strings.Join(statusBits, "  ")
 	}
+	if account.Quota.Loading {
+		header += "  " + styleInfo.Render(spinnerFrames[m.spinner]+" loading")
+	}
 
 	if m.mode == modeDeleteConfirm && index == m.cursor {
 		return []string{
@@ -324,7 +341,7 @@ func renderQuotaLine(window quota.Window, snapshot quota.Snapshot, fallbackLabel
 		return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  checking quota", label, renderSkeletonBar(10)))
 	}
 	if !snapshot.HasData {
-		return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  no recent local usage", label, renderSkeletonBar(10)))
+		return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  quota unavailable", label, renderSkeletonBar(10)))
 	}
 
 	bar := renderBar(window.UsedPercent, 10)
@@ -332,9 +349,6 @@ func renderQuotaLine(window quota.Window, snapshot quota.Snapshot, fallbackLabel
 	resetText := "reset unknown"
 	if !window.ResetsAt.IsZero() {
 		resetText = "resets " + window.ResetsAt.Local().Format("Jan _2 15:04")
-	}
-	if snapshot.Stale {
-		resetText += " · cached"
 	}
 	return fmt.Sprintf("  %-3s %s  %s  %s", label, bar, percent, styleDim.Render(resetText))
 }
@@ -403,22 +417,17 @@ func clampCursor(accounts []store.Account, current int) int {
 	return current
 }
 
-func (m Model) quotaInfo() string {
-	var hasLive bool
-	var hasLocal bool
-	var missing int
+func (m Model) anyLoading() bool {
 	for _, account := range m.accounts {
-		switch {
-		case account.Quota.Source == "live":
-			hasLive = true
-		case account.Quota.HasData:
-			hasLocal = true
-		default:
-			missing++
+		if account.Quota.Loading {
+			return true
 		}
 	}
-	if !hasLive && hasLocal && missing > 0 {
-		return "Live quota refresh is blocked upstream here, so only local session snapshots are shown."
-	}
-	return ""
+	return false
+}
+
+func spinnerTickCmd() tea.Cmd {
+	return tea.Tick(120*time.Millisecond, func(time.Time) tea.Msg {
+		return spinnerTickMsg{}
+	})
 }
