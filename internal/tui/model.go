@@ -15,10 +15,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type errMsg struct {
-	err error
-}
-
 type mode int
 
 const (
@@ -26,6 +22,33 @@ const (
 	modeEdit
 	modeDeleteConfirm
 )
+
+var (
+	styleWarning = lipgloss.NewStyle().Foreground(lipgloss.Color("228")).Bold(true)
+	styleError   = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true)
+	styleInfo    = lipgloss.NewStyle().Foreground(lipgloss.Color("109"))
+	styleName    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("255"))
+	styleDim     = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	styleCurrent = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
+	styleTarget  = lipgloss.NewStyle().Foreground(lipgloss.Color("81")).Bold(true)
+	styleSaved   = lipgloss.NewStyle().Foreground(lipgloss.Color("141"))
+	styleLive    = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+	styleDelete  = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true)
+	styleCursor  = lipgloss.NewStyle().Foreground(lipgloss.Color("81")).Bold(true)
+	styleKey     = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Background(lipgloss.Color("238")).Padding(0, 1)
+	styleKeyBlue = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Background(lipgloss.Color("31")).Padding(0, 1)
+	styleKeyRed  = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Background(lipgloss.Color("160")).Padding(0, 1)
+	styleBarOn   = lipgloss.NewStyle().Foreground(lipgloss.Color("81"))
+	styleBarOff  = lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
+	styleBarWarn = lipgloss.NewStyle().Foreground(lipgloss.Color("221"))
+)
+
+type appController interface {
+	RefreshAll(context.Context, []store.Account) map[string]quota.Snapshot
+	CommitAlias([]store.Account, store.Account, string) (store.Account, error)
+	DeleteAccount([]store.Account, store.Account) (app.DeleteResult, error)
+	SwitchAccount([]store.Account, store.Account) error
+}
 
 type Model struct {
 	controller appController
@@ -36,21 +59,17 @@ type Model struct {
 	input      textinput.Model
 	errorText  string
 	warning    string
-	quitting   bool
 }
 
-type appController interface {
-	RefreshAll(context.Context, []store.Account) map[string]quota.Snapshot
-	CommitAlias([]store.Account, store.Account, string) (store.Account, error)
-	DeleteAccount([]store.Account, store.Account) (app.DeleteResult, error)
-	SwitchAccount([]store.Account, store.Account) error
-}
+type refreshDoneMsg map[string]quota.Snapshot
 
 func NewModel(controller appController, accounts []store.Account, warning string) Model {
 	input := textinput.New()
 	input.Prompt = ""
 	input.CharLimit = 128
-	input.Width = 48
+	input.Width = 36
+	input.TextStyle = styleName
+	input.Placeholder = "account name"
 
 	return Model{
 		controller: controller,
@@ -87,13 +106,9 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.WindowSizeMsg:
-	case errMsg:
-		m.errorText = message.err.Error()
 	}
 	return m, nil
 }
-
-type refreshDoneMsg map[string]quota.Snapshot
 
 func (m Model) updateKey(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch m.mode {
@@ -124,7 +139,7 @@ func (m Model) updateKey(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.errorText = ""
 	case "d":
 		if !m.selected().Saved {
-			m.errorText = "unsaved current account cannot be deleted"
+			m.errorText = "Only saved accounts can be deleted."
 			return m, nil
 		}
 		m.mode = modeDeleteConfirm
@@ -140,17 +155,14 @@ func (m Model) updateKey(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 				m.replaceAccount(updated)
 			}
-			m.quitting = true
 			return m, tea.Quit
 		}
 		if err := m.controller.SwitchAccount(m.accounts, selected); err != nil {
 			m.errorText = err.Error()
 			return m, nil
 		}
-		m.quitting = true
 		return m, tea.Quit
 	case "esc", "q", "ctrl+c":
-		m.quitting = true
 		return m, tea.Quit
 	}
 
@@ -210,17 +222,19 @@ func (m Model) updateDeleteConfirm(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	if len(m.accounts) == 0 {
-		return "no codex accounts found"
+		return "No Codex accounts found."
 	}
 
-	var lines []string
-	lines = append(lines, lipgloss.NewStyle().Bold(true).Render("codex-auth"))
-	lines = append(lines, "up/down,j/k move  space mark  enter confirm  e/i edit  d delete  esc/q close")
+	lines := make([]string, 0, len(m.accounts)*3+6)
 	if m.warning != "" {
-		lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render(m.warning))
+		lines = append(lines, styleWarning.Render("Warning: "+m.warning))
 	}
+	if info := m.quotaInfo(); info != "" {
+		lines = append(lines, styleInfo.Render(info))
+	}
+	lines = append(lines, renderKeyLegend()...)
 	if m.errorText != "" {
-		lines = append(lines, lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Render(m.errorText))
+		lines = append(lines, styleError.Render(m.errorText))
 	}
 	lines = append(lines, "")
 
@@ -231,79 +245,116 @@ func (m Model) View() string {
 	return strings.Join(lines, "\n")
 }
 
+func renderKeyLegend() []string {
+	line1 := []string{
+		styleKey.Render("↑/↓"),
+		styleDim.Render("move"),
+		styleKeyBlue.Render("Space"),
+		styleDim.Render("mark switch target"),
+		styleKey.Render("Enter"),
+		styleDim.Render("confirm"),
+	}
+	line2 := []string{
+		styleKey.Render("E"),
+		styleDim.Render("save / rename"),
+		styleKeyRed.Render("D"),
+		styleDim.Render("delete"),
+		styleKey.Render("Esc"),
+		styleDim.Render("close"),
+	}
+	return []string{
+		strings.Join(line1, "  "),
+		strings.Join(line2, "  "),
+	}
+}
+
 func (m Model) renderAccount(index int, account store.Account) []string {
-	pointer := " "
+	cursor := " "
 	if index == m.cursor {
-		pointer = ">"
+		cursor = styleCursor.Render("›")
 	}
 
-	saveIcon := "[ ]"
-	if account.Saved {
-		saveIcon = "[*]"
-	}
-
-	markers := make([]string, 0, 2)
+	statusBits := []string{}
 	if account.Current {
-		markers = append(markers, "current")
+		statusBits = append(statusBits, styleCurrent.Render("● current"))
 	}
 	if m.markedKey == account.Key && !account.Current {
-		markers = append(markers, "target")
+		statusBits = append(statusBits, styleTarget.Render("○ switch"))
+	}
+	if account.Saved {
+		statusBits = append(statusBits, styleSaved.Render("saved"))
+	} else {
+		statusBits = append(statusBits, styleLive.Render("live only"))
+	}
+	if plan := strings.TrimSpace(account.Meta.PlanType); plan != "" {
+		statusBits = append(statusBits, styleDim.Render(strings.ToUpper(plan)))
 	}
 
-	label := account.DisplayName
+	label := styleName.Render(account.DisplayName)
 	if m.mode == modeEdit && index == m.cursor {
 		label = m.input.View()
 	}
-	header := fmt.Sprintf("%s %s %s", pointer, saveIcon, label)
-	if len(markers) > 0 {
-		header += "  " + strings.Join(markers, ", ")
-	}
-	if account.Meta.PlanType != "" {
-		header += "  " + strings.ToUpper(account.Meta.PlanType)
+	header := fmt.Sprintf("%s %s", cursor, label)
+	if len(statusBits) > 0 {
+		header += "  " + strings.Join(statusBits, "  ")
 	}
 
-	primary := quotaLine("5h", account.Quota.Primary.UsedPercent, account.Quota.Primary.ResetsAt, account.Quota.Loading, account.Quota.Error)
-	secondary := quotaLine("7d", account.Quota.Secondary.UsedPercent, account.Quota.Secondary.ResetsAt, account.Quota.Loading, account.Quota.Error)
-	if account.Quota.Primary.Label != "" {
-		primary = quotaLine(account.Quota.Primary.Label, account.Quota.Primary.UsedPercent, account.Quota.Primary.ResetsAt, account.Quota.Loading, account.Quota.Error)
-	}
-	if account.Quota.Secondary.Label != "" {
-		secondary = quotaLine(account.Quota.Secondary.Label, account.Quota.Secondary.UsedPercent, account.Quota.Secondary.ResetsAt, account.Quota.Loading, account.Quota.Error)
-	}
 	if m.mode == modeDeleteConfirm && index == m.cursor {
-		secondary = "  press Enter to delete, Esc to cancel"
+		return []string{
+			header,
+			styleDelete.Render("  Delete this saved account?"),
+			styleDim.Render("  Enter confirms deletion. Esc cancels."),
+		}
 	}
 
-	return []string{header, primary, secondary}
+	return []string{
+		header,
+		renderQuotaLine(account.Quota.Primary, account.Quota, "5h"),
+		renderQuotaLine(account.Quota.Secondary, account.Quota, "7d"),
+	}
 }
 
-func quotaLine(label string, percent float64, reset time.Time, loading bool, errText string) string {
-	if loading {
-		return fmt.Sprintf("  %s  [..........] checking quota", label)
+func renderQuotaLine(window quota.Window, snapshot quota.Snapshot, fallbackLabel string) string {
+	label := fallbackLabel
+	if window.Label != "" {
+		label = window.Label
 	}
-	bar := renderBar(percent)
-	if errText != "" {
-		return fmt.Sprintf("  %s  %s unavailable", label, bar)
+
+	if snapshot.Loading {
+		return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  checking quota", label, renderSkeletonBar(10)))
 	}
-	resetText := "unknown"
-	if !reset.IsZero() {
-		resetText = reset.Local().Format("Jan _2 15:04")
+	if !snapshot.HasData {
+		return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  no local quota snapshot", label, renderSkeletonBar(10)))
 	}
-	return fmt.Sprintf("  %s  %s %3.0f%%  resets %s", label, bar, percent, resetText)
+
+	bar := renderBar(window.UsedPercent, 10)
+	percent := styleDim.Render(fmt.Sprintf("%3.0f%%", window.UsedPercent))
+	resetText := "reset unknown"
+	if !window.ResetsAt.IsZero() {
+		resetText = "resets " + window.ResetsAt.Local().Format("Jan _2 15:04")
+	}
+	if snapshot.Stale {
+		resetText += " · cached"
+	}
+	return fmt.Sprintf("  %-3s %s  %s  %s", label, bar, percent, styleDim.Render(resetText))
 }
 
-func renderBar(percent float64) string {
+func renderBar(percent float64, width int) string {
 	if percent < 0 {
 		percent = 0
 	}
 	if percent > 100 {
 		percent = 100
 	}
-	filled := int((percent / 100) * 10)
-	if filled > 10 {
-		filled = 10
+	filled := int((percent / 100) * float64(width))
+	if filled > width {
+		filled = width
 	}
-	return "[" + strings.Repeat("#", filled) + strings.Repeat("-", 10-filled) + "]"
+	return styleBarOn.Render(strings.Repeat("█", filled)) + styleBarOff.Render(strings.Repeat("░", width-filled))
+}
+
+func renderSkeletonBar(width int) string {
+	return styleBarWarn.Render(strings.Repeat("·", width))
 }
 
 func (m *Model) selected() store.Account {
@@ -350,4 +401,24 @@ func clampCursor(accounts []store.Account, current int) int {
 		return len(accounts) - 1
 	}
 	return current
+}
+
+func (m Model) quotaInfo() string {
+	var hasLive bool
+	var hasLocal bool
+	var missing int
+	for _, account := range m.accounts {
+		switch {
+		case account.Quota.Source == "live":
+			hasLive = true
+		case account.Quota.HasData:
+			hasLocal = true
+		default:
+			missing++
+		}
+	}
+	if !hasLive && hasLocal && missing > 0 {
+		return "Live quota refresh is blocked upstream here, so only local session snapshots are shown."
+	}
+	return ""
 }

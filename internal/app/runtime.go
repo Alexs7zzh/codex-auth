@@ -32,6 +32,14 @@ func Load(home string, provider quota.Provider) (*Runtime, []store.Account, stri
 		return nil, nil, "", err
 	}
 
+	if localSnapshot, ok := quota.LoadRecentLocalSnapshot(home); ok {
+		for i := range discovery.Accounts {
+			if discovery.Accounts[i].Current && !discovery.Accounts[i].Quota.HasData {
+				discovery.Accounts[i].Quota = localSnapshot
+			}
+		}
+	}
+
 	warning := codexWarning()
 	return &Runtime{
 		store:    fileStore,
@@ -60,9 +68,10 @@ func (r *Runtime) RefreshAll(ctx context.Context, accounts []store.Account) map[
 				snapshot.Loading = false
 				snapshot.Stale = true
 				snapshot.Source = firstNonEmpty(snapshot.Source, "cached")
-				snapshot.Error = err.Error()
-				if snapshot.Primary.Label == "" {
-					snapshot = quota.ErrorSnapshot(err)
+				if snapshot.HasData {
+					snapshot.Error = err.Error()
+				} else {
+					snapshot = quota.Empty("")
 				}
 			}
 			channel <- item{key: account.Key, snapshot: snapshot}

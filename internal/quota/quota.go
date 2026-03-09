@@ -1,11 +1,15 @@
 package quota
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -28,6 +32,7 @@ type Snapshot struct {
 	Stale     bool      `json:"stale,omitempty"`
 	Error     string    `json:"error,omitempty"`
 	Loading   bool      `json:"loading,omitempty"`
+	HasData   bool      `json:"has_data,omitempty"`
 }
 
 type Provider interface {
@@ -71,14 +76,19 @@ func Loading() Snapshot {
 	}
 }
 
-func ErrorSnapshot(err error) Snapshot {
+func Empty(reason string) Snapshot {
 	snapshot := Loading()
 	snapshot.Loading = false
 	snapshot.Stale = true
-	if err != nil {
-		snapshot.Error = err.Error()
-	}
+	snapshot.Error = reason
 	return snapshot
+}
+
+func ErrorSnapshot(err error) Snapshot {
+	if err == nil {
+		return Empty("")
+	}
+	return Empty(err.Error())
 }
 
 func (p *LiveProvider) Fetch(ctx context.Context, file authfile.File) (Snapshot, error) {
@@ -158,6 +168,7 @@ func (p *LiveProvider) fetchURL(ctx context.Context, file authfile.File, endpoin
 		PlanType:  strings.ToLower(planType),
 		CheckedAt: time.Now().UTC(),
 		Source:    "live",
+		HasData:   true,
 	}, nil
 }
 
@@ -177,4 +188,115 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+type fileInfo struct {
+	path    string
+	modTime time.Time
+}
+
+type sessionLine struct {
+	Timestamp string `json:"timestamp"`
+	Payload   struct {
+		Type       string          `json:"type"`
+		RateLimits json.RawMessage `json:"rate_limits"`
+	} `json:"payload"`
+}
+
+type sessionRateLimits struct {
+	Primary   liveWindow `json:"primary"`
+	Secondary liveWindow `json:"secondary"`
+	PlanType  string     `json:"plan_type"`
+}
+
+func LoadRecentLocalSnapshot(home string) (Snapshot, bool) {
+	candidates := newestSessionFiles(home, 40)
+	for _, candidate := range candidates {
+		snapshot, ok := readSnapshotFromSessionFile(candidate.path)
+		if ok {
+			snapshot.Source = "local-session"
+			snapshot.Stale = true
+			snapshot.HasData = true
+			return snapshot, true
+		}
+	}
+	return Snapshot{}, false
+}
+
+func newestSessionFiles(home string, limit int) []fileInfo {
+	roots := []string{
+		filepath.Join(home, "sessions"),
+		filepath.Join(home, "archived_sessions"),
+	}
+	files := make([]fileInfo, 0, limit)
+	for _, root := range roots {
+		_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+			if err != nil || entry.IsDir() || filepath.Ext(path) != ".jsonl" {
+				return nil
+			}
+			info, statErr := entry.Info()
+			if statErr != nil {
+				return nil
+			}
+			files = append(files, fileInfo{path: path, modTime: info.ModTime()})
+			return nil
+		})
+	}
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].modTime.After(files[j].modTime)
+	})
+	if len(files) > limit {
+		files = files[:limit]
+	}
+	return files
+}
+
+func readSnapshotFromSessionFile(path string) (Snapshot, bool) {
+	file, err := os.Open(path)
+	if err != nil {
+		return Snapshot{}, false
+	}
+	defer file.Close()
+
+	var best Snapshot
+	var bestTime time.Time
+	scanner := bufio.NewScanner(file)
+	buffer := make([]byte, 0, 64*1024)
+	scanner.Buffer(buffer, 512*1024)
+
+	for scanner.Scan() {
+		var line sessionLine
+		if err := json.Unmarshal(scanner.Bytes(), &line); err != nil {
+			continue
+		}
+		if line.Payload.Type != "token_count" || len(line.Payload.RateLimits) == 0 {
+			continue
+		}
+
+		var payload sessionRateLimits
+		if err := json.Unmarshal(line.Payload.RateLimits, &payload); err != nil {
+			continue
+		}
+		if payload.Primary.WindowMinutes == 0 && payload.Secondary.WindowMinutes == 0 {
+			continue
+		}
+
+		timestamp, _ := time.Parse(time.RFC3339Nano, line.Timestamp)
+		if timestamp.Before(bestTime) {
+			continue
+		}
+		bestTime = timestamp
+		best = Snapshot{
+			Primary:   normalizeWindow("5h", payload.Primary),
+			Secondary: normalizeWindow("7d", payload.Secondary),
+			PlanType:  strings.ToLower(payload.PlanType),
+			CheckedAt: timestamp.UTC(),
+			HasData:   true,
+		}
+	}
+
+	if bestTime.IsZero() {
+		return Snapshot{}, false
+	}
+	return best, true
 }
