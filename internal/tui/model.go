@@ -91,8 +91,11 @@ func NewModel(controller appController, accounts []store.Account, warning string
 
 func Run(ctx context.Context, model Model) error {
 	_ = ctx
-	program := tea.NewProgram(model)
-	_, err := program.Run()
+	program := tea.NewProgram(model, tea.WithAltScreen())
+	finalModel, err := program.Run()
+	if rendered, ok := finalModel.(Model); ok {
+		fmt.Print(rendered.View())
+	}
 	fmt.Println()
 	return err
 }
