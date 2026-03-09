@@ -337,10 +337,10 @@ func renderQuotaLine(window quota.Window, snapshot quota.Snapshot, fallbackLabel
 		label = window.Label
 	}
 
-	if snapshot.Loading {
-		return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  checking quota", label, renderSkeletonBar(10)))
-	}
 	if !snapshot.HasData {
+		if snapshot.Loading {
+			return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  checking quota", label, renderSkeletonBar(10)))
+		}
 		return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  quota unavailable", label, renderSkeletonBar(10)))
 	}
 

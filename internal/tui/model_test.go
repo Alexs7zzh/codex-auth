@@ -139,6 +139,38 @@ func TestViewKeepsRowHeightAfterRefresh(t *testing.T) {
 	}
 }
 
+func TestViewShowsCachedQuotaWhileLiveRefreshIsLoading(t *testing.T) {
+	account := sampleAccount("a", true, true)
+	account.Quota = quota.Snapshot{
+		Primary: quota.Window{
+			Label:       "5h",
+			UsedPercent: 40,
+			ResetsAt:    time.Now().Add(time.Hour),
+		},
+		Secondary: quota.Window{
+			Label:       "7d",
+			UsedPercent: 60,
+			ResetsAt:    time.Now().Add(7 * time.Hour),
+		},
+		HasData:   true,
+		Loading:   true,
+		CheckedAt: time.Now(),
+	}
+
+	model := NewModel(&fakeController{}, []store.Account{account}, "")
+	view := model.View()
+
+	if !strings.Contains(view, "loading") {
+		t.Fatal("expected loading spinner text in header")
+	}
+	if strings.Contains(view, "checking quota") {
+		t.Fatal("expected cached quota lines to stay visible while loading")
+	}
+	if !strings.Contains(view, "40%") {
+		t.Fatal("expected cached quota percentage to be rendered")
+	}
+}
+
 func sampleAccount(name string, saved, current bool) store.Account {
 	return store.Account{
 		Key:          name + "-key",
