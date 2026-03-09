@@ -139,6 +139,25 @@ func TestViewKeepsRowHeightAfterRefresh(t *testing.T) {
 	}
 }
 
+func TestViewAddsPaddingBetweenAccounts(t *testing.T) {
+	model := NewModel(&fakeController{}, []store.Account{
+		sampleAccount("alex", true, true),
+		sampleAccount("dev", true, false),
+	}, "")
+
+	lines := strings.Split(model.View(), "\n")
+	blankLines := 0
+	for _, line := range lines {
+		if line == "" {
+			blankLines++
+		}
+	}
+
+	if blankLines < 2 {
+		t.Fatalf("expected one blank line before list and one between accounts, got %d", blankLines)
+	}
+}
+
 func TestViewShowsCachedQuotaWhileLiveRefreshIsLoading(t *testing.T) {
 	account := sampleAccount("a", true, true)
 	account.Quota = quota.Snapshot{
@@ -171,7 +190,7 @@ func TestViewShowsCachedQuotaWhileLiveRefreshIsLoading(t *testing.T) {
 	}
 }
 
-func TestQuotaBarWidthPrefers24AndShrinksForNarrowTerminal(t *testing.T) {
+func TestQuotaBarWidthCapsAt28AndShrinksForNarrowTerminal(t *testing.T) {
 	account := sampleAccount("a", true, true)
 	account.Quota = quota.Snapshot{
 		Primary: quota.Window{
@@ -188,13 +207,22 @@ func TestQuotaBarWidthPrefers24AndShrinksForNarrowTerminal(t *testing.T) {
 	}
 
 	model := NewModel(&fakeController{}, []store.Account{account}, "")
-	if got := model.quotaBarWidth(account); got != 24 {
-		t.Fatalf("expected preferred bar width 24, got %d", got)
+	if got := model.quotaBarWidth(account); got != 28 {
+		t.Fatalf("expected fallback bar width 28 without window size, got %d", got)
+	}
+
+	model.width = 120
+	if got := model.quotaBarWidth(account); got != 28 {
+		t.Fatalf("expected bar width capped at 28 in wide terminal, got %d", got)
 	}
 
 	model.width = 40
-	if got := model.quotaBarWidth(account); got >= 24 {
-		t.Fatalf("expected shrunk bar width below 24, got %d", got)
+	narrow := model.quotaBarWidth(account)
+	if narrow >= 28 {
+		t.Fatalf("expected narrower bar after shrinking terminal, got %d", narrow)
+	}
+	if narrow < 8 {
+		t.Fatalf("expected minimum bar width of 8, got %d", narrow)
 	}
 }
 

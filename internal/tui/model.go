@@ -259,6 +259,9 @@ func (m Model) View() string {
 	lines = append(lines, "")
 
 	for index, account := range m.accounts {
+		if index > 0 {
+			lines = append(lines, "")
+		}
 		lines = append(lines, m.renderAccount(index, account)...)
 	}
 
@@ -342,7 +345,6 @@ func (m Model) renderAccount(index int, account store.Account) []string {
 	if trailing != "" {
 		header = alignHeader(header, trailing, rowWidth)
 	}
-
 	if m.mode == modeDeleteConfirm && index == m.cursor {
 		return []string{
 			header,
@@ -435,22 +437,26 @@ func joinTrailing(parts ...string) string {
 }
 
 func (m Model) quotaBarWidth(account store.Account) int {
-	const preferred = 24
+	const preferred = 28
 	const minimum = 8
 
 	if m.width <= 0 {
 		return preferred
 	}
 
-	for width := preferred; width >= minimum; width-- {
-		primaryLine := renderQuotaLine(account.Quota.Primary, account.Quota, "5h", width)
-		secondaryLine := renderQuotaLine(account.Quota.Secondary, account.Quota, "7d", width)
-		if maxInt(lipgloss.Width(primaryLine), lipgloss.Width(secondaryLine)) <= m.width {
-			return width
-		}
+	staticWidth := maxInt(
+		lipgloss.Width(renderQuotaLine(account.Quota.Primary, account.Quota, "5h", 0)),
+		lipgloss.Width(renderQuotaLine(account.Quota.Secondary, account.Quota, "7d", 0)),
+	)
+	available := m.width - staticWidth
+	if available < minimum {
+		return minimum
+	}
+	if available > preferred {
+		return preferred
 	}
 
-	return minimum
+	return available
 }
 
 func maxInt(values ...int) int {
