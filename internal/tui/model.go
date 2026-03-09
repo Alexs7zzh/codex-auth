@@ -24,23 +24,26 @@ const (
 )
 
 var (
-	styleWarning = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Bold(true)
-	styleError   = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
-	styleInfo    = lipgloss.NewStyle().Faint(true)
-	styleName    = lipgloss.NewStyle().Bold(true)
-	styleDim     = lipgloss.NewStyle().Faint(true)
-	styleCurrent = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
-	styleTarget  = lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
-	styleSaved   = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
-	styleLive    = lipgloss.NewStyle().Foreground(lipgloss.Color("5")).Bold(true)
-	styleDelete  = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
-	styleCursor  = lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
-	styleKey     = lipgloss.NewStyle().Bold(true)
-	styleKeyBlue = lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
-	styleKeyRed  = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
-	styleBarOn   = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
-	styleBarOff  = lipgloss.NewStyle().Faint(true)
-	styleBarWarn = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Faint(true)
+	styleWarning   = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Bold(true)
+	styleError     = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
+	styleInfo      = lipgloss.NewStyle().Faint(true)
+	styleName      = lipgloss.NewStyle().Bold(true)
+	styleDim       = lipgloss.NewStyle().Faint(true)
+	styleCurrent   = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
+	styleTarget    = lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
+	styleSaved     = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
+	styleLive      = lipgloss.NewStyle().Foreground(lipgloss.Color("5")).Bold(true)
+	styleDelete    = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
+	styleCursor    = lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
+	styleKey       = lipgloss.NewStyle().Bold(true)
+	styleKeyBlue   = lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
+	styleKeyCyan   = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
+	styleKeyGreen  = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
+	styleKeyRed    = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
+	styleKeyYellow = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Bold(true)
+	styleBarOn     = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
+	styleBarOff    = lipgloss.NewStyle().Faint(true)
+	styleBarWarn   = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Faint(true)
 )
 
 var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
@@ -273,12 +276,12 @@ func renderKeyLegend() []string {
 		renderKeyLegendLine(
 			keyLegendItem{style: styleKey, key: "↑/↓", desc: "move"},
 			keyLegendItem{style: styleKeyBlue, key: "Space", desc: "switch"},
-			keyLegendItem{style: styleKey, key: "Enter", desc: "confirm"},
+			keyLegendItem{style: styleKeyGreen, key: "Enter", desc: "confirm"},
 		),
 		renderKeyLegendLine(
-			keyLegendItem{style: styleKey, key: "E", desc: "rename"},
+			keyLegendItem{style: styleKeyCyan, key: "E", desc: "rename"},
 			keyLegendItem{style: styleKeyRed, key: "D", desc: "delete"},
-			keyLegendItem{style: styleKey, key: "Esc", desc: "close"},
+			keyLegendItem{style: styleKeyYellow, key: "Esc", desc: "close"},
 		),
 	}
 }
