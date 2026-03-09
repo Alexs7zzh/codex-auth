@@ -19,13 +19,13 @@
 Preferred install path, once you publish your tap:
 
 ```bash
-brew install YOUR_GITHUB_USER/homebrew-tap/codex-auth
+brew install Alexs7zzh/homebrew-tap/codex-auth
 ```
 
 Or:
 
 ```bash
-brew tap YOUR_GITHUB_USER/homebrew-tap
+brew tap Alexs7zzh/homebrew-tap
 brew install codex-auth
 ```
 
@@ -82,7 +82,7 @@ This repository ships the binary release assets. The Homebrew formula should liv
 Recommended setup:
 
 ```bash
-brew tap-new YOUR_GITHUB_USER/homebrew-tap
+brew tap-new Alexs7zzh/homebrew-tap
 ```
 
 Then push that tap repository to GitHub and add a formula under `Formula/codex-auth.rb`.
