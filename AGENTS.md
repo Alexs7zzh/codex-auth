@@ -58,3 +58,11 @@ Release flow:
 - Keep the public `README.md` user-focused.
 - Put maintainer and agent workflow notes here rather than expanding the README.
 - Keep changes scoped; avoid refactoring unrelated code during UI tweaks.
+
+## Package Layout Conventions
+
+- Keep the current domain-based package split under `internal/`.
+- Do not flatten everything into one `internal` directory just because some packages are still single-file.
+- A single-file package is acceptable when it represents a clear boundary like `tui`, `store`, `quota`, or `authfile`.
+- Avoid generic catch-all packages or filenames such as `utils`, `helpers`, or `all`.
+- Prefer adding files to an existing domain package before introducing a new package.
