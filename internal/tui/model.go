@@ -62,6 +62,7 @@ type Model struct {
 	errorText  string
 	warning    string
 	spinner    int
+	width      int
 }
 
 type refreshDoneMsg map[string]quota.Snapshot
@@ -123,6 +124,7 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, spinnerTickCmd()
 		}
 	case tea.WindowSizeMsg:
+		m.width = message.Width
 	}
 	return m, nil
 }
@@ -296,31 +298,34 @@ func (m Model) renderAccount(index int, account store.Account) []string {
 	}
 
 	statusBits := []string{}
-	if account.Saved {
-		statusBits = append(statusBits, styleSaved.Render("saved"))
-	} else {
+	if !account.Saved {
 		statusBits = append(statusBits, styleLive.Render("live only"))
 	}
 	if plan := strings.TrimSpace(account.Meta.PlanType); plan != "" {
 		statusBits = append(statusBits, styleDim.Render(strings.ToUpper(plan)))
-	}
-	if account.Current {
-		statusBits = append(statusBits, styleCurrent.Render("● current"))
-	}
-	if m.markedKey == account.Key && !account.Current {
-		statusBits = append(statusBits, styleTarget.Render("○ switch"))
 	}
 
 	label := styleName.Render(account.DisplayName)
 	if m.mode == modeEdit && index == m.cursor {
 		label = m.input.View()
 	}
-	header := fmt.Sprintf("%s %s", cursor, label)
+	leftParts := []string{fmt.Sprintf("%s %s", cursor, label)}
 	if len(statusBits) > 0 {
-		header += "  " + strings.Join(statusBits, "  ")
+		leftParts = append(leftParts, strings.Join(statusBits, "  "))
 	}
+	header := strings.Join(leftParts, "  ")
+
+	trailing := ""
 	if account.Quota.Loading {
-		header += "  " + styleInfo.Render(spinnerFrames[m.spinner]+" loading")
+		trailing = styleInfo.Render(spinnerFrames[m.spinner] + " loading")
+	}
+	if account.Current {
+		trailing = joinTrailing(trailing, styleCurrent.Render("● current"))
+	} else if m.markedKey == account.Key {
+		trailing = joinTrailing(trailing, styleTarget.Render("○ switch"))
+	}
+	if trailing != "" {
+		header = alignHeader(header, trailing, m.width)
 	}
 
 	if m.mode == modeDeleteConfirm && index == m.cursor {
@@ -388,6 +393,30 @@ func renderBar(percent float64, width int) string {
 
 func renderSkeletonBar(width int) string {
 	return styleBarWarn.Render(strings.Repeat("·", width))
+}
+
+func alignHeader(left, right string, width int) string {
+	if right == "" {
+		return left
+	}
+	if width <= 0 {
+		return left + "  " + right
+	}
+	gap := width - lipgloss.Width(left) - lipgloss.Width(right)
+	if gap < 2 {
+		gap = 2
+	}
+	return left + strings.Repeat(" ", gap) + right
+}
+
+func joinTrailing(parts ...string) string {
+	filtered := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part != "" {
+			filtered = append(filtered, part)
+		}
+	}
+	return strings.Join(filtered, "  ")
 }
 
 func (m *Model) selected() store.Account {
