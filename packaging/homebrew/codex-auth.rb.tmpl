@@ -2,15 +2,11 @@ class CodexAuth < Formula
   desc "Interactive local Codex account switcher"
   homepage "https://github.com/REPO_OWNER/REPO_NAME"
   version "RELEASE_VERSION"
+  depends_on arch: :arm64
 
   on_macos do
-    if Hardware::CPU.arm?
-      url "https://github.com/REPO_OWNER/REPO_NAME/releases/download/v#{version}/codex-auth_v#{version}_darwin_arm64.tar.gz"
-      sha256 "DARWIN_ARM64_SHA256"
-    else
-      url "https://github.com/REPO_OWNER/REPO_NAME/releases/download/v#{version}/codex-auth_v#{version}_darwin_amd64.tar.gz"
-      sha256 "DARWIN_AMD64_SHA256"
-    end
+    url "https://github.com/REPO_OWNER/REPO_NAME/releases/download/v#{version}/codex-auth_v#{version}_darwin_arm64.tar.gz"
+    sha256 "DARWIN_ARM64_SHA256"
   end
 
   def install

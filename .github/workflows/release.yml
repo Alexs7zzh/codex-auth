@@ -18,8 +18,6 @@ jobs:
         include:
           - goos: darwin
             goarch: arm64
-          - goos: darwin
-            goarch: amd64
 
     steps:
       - name: Checkout
@@ -83,13 +81,11 @@ jobs:
         run: |
           set -euo pipefail
           ARM64_SHA="$(awk '/darwin_arm64.tar.gz$/ {print $1}' dist/checksums.txt)"
-          AMD64_SHA="$(awk '/darwin_amd64.tar.gz$/ {print $1}' dist/checksums.txt)"
           sed \
             -e "s|REPO_OWNER|${REPOSITORY%/*}|g" \
             -e "s|REPO_NAME|${REPOSITORY#*/}|g" \
             -e "s|RELEASE_VERSION|${VERSION#v}|g" \
             -e "s|DARWIN_ARM64_SHA256|${ARM64_SHA}|g" \
-            -e "s|DARWIN_AMD64_SHA256|${AMD64_SHA}|g" \
             packaging/homebrew/codex-auth.rb.tmpl > dist/codex-auth.rb
 
       - name: Create GitHub release
