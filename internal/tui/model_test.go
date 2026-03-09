@@ -171,6 +171,33 @@ func TestViewShowsCachedQuotaWhileLiveRefreshIsLoading(t *testing.T) {
 	}
 }
 
+func TestQuotaBarWidthPrefers24AndShrinksForNarrowTerminal(t *testing.T) {
+	account := sampleAccount("a", true, true)
+	account.Quota = quota.Snapshot{
+		Primary: quota.Window{
+			Label:       "5h",
+			UsedPercent: 40,
+			ResetsAt:    time.Date(2026, 3, 9, 17, 16, 0, 0, time.Local),
+		},
+		Secondary: quota.Window{
+			Label:       "7d",
+			UsedPercent: 95,
+			ResetsAt:    time.Date(2026, 3, 10, 11, 43, 0, 0, time.Local),
+		},
+		HasData: true,
+	}
+
+	model := NewModel(&fakeController{}, []store.Account{account}, "")
+	if got := model.quotaBarWidth(account); got != 24 {
+		t.Fatalf("expected preferred bar width 24, got %d", got)
+	}
+
+	model.width = 40
+	if got := model.quotaBarWidth(account); got >= 24 {
+		t.Fatalf("expected shrunk bar width below 24, got %d", got)
+	}
+}
+
 func sampleAccount(name string, saved, current bool) store.Account {
 	return store.Account{
 		Key:          name + "-key",

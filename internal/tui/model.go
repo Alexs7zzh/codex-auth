@@ -62,6 +62,7 @@ type Model struct {
 	errorText  string
 	warning    string
 	spinner    int
+	width      int
 }
 
 type refreshDoneMsg map[string]quota.Snapshot
@@ -124,6 +125,7 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, spinnerTickCmd()
 		}
 	case tea.WindowSizeMsg:
+		m.width = message.Width
 	}
 	return m, nil
 }
@@ -302,8 +304,9 @@ func (m Model) renderAccount(index int, account store.Account) []string {
 		cursor = styleCursor.Render("›")
 	}
 
-	primaryLine := renderQuotaLine(account.Quota.Primary, account.Quota, "5h")
-	secondaryLine := renderQuotaLine(account.Quota.Secondary, account.Quota, "7d")
+	barWidth := m.quotaBarWidth(account)
+	primaryLine := renderQuotaLine(account.Quota.Primary, account.Quota, "5h", barWidth)
+	secondaryLine := renderQuotaLine(account.Quota.Secondary, account.Quota, "7d", barWidth)
 	rowWidth := maxInt(lipgloss.Width(primaryLine), lipgloss.Width(secondaryLine))
 
 	statusBits := []string{}
@@ -352,8 +355,7 @@ func (m Model) renderAccount(index int, account store.Account) []string {
 	}
 }
 
-func renderQuotaLine(window quota.Window, snapshot quota.Snapshot, fallbackLabel string) string {
-	const quotaBarWidth = 18
+func renderQuotaLine(window quota.Window, snapshot quota.Snapshot, fallbackLabel string, barWidth int) string {
 	label := fallbackLabel
 	if window.Label != "" {
 		label = window.Label
@@ -361,13 +363,13 @@ func renderQuotaLine(window quota.Window, snapshot quota.Snapshot, fallbackLabel
 
 	if !snapshot.HasData {
 		if snapshot.Loading {
-			return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  checking quota", label, renderSkeletonBar(quotaBarWidth)))
+			return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  checking quota", label, renderSkeletonBar(barWidth)))
 		}
-		return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  quota unavailable", label, renderSkeletonBar(quotaBarWidth)))
+		return "  " + styleDim.Render(fmt.Sprintf("%-3s %s  quota unavailable", label, renderSkeletonBar(barWidth)))
 	}
 
 	remaining := remainingPercent(window.UsedPercent)
-	bar := renderBar(remaining, quotaBarWidth)
+	bar := renderBar(remaining, barWidth)
 	percent := styleDim.Render(fmt.Sprintf("%3.0f%% left", remaining))
 	resetText := "reset unknown"
 	if !window.ResetsAt.IsZero() {
@@ -427,6 +429,25 @@ func joinTrailing(parts ...string) string {
 		}
 	}
 	return strings.Join(filtered, "  ")
+}
+
+func (m Model) quotaBarWidth(account store.Account) int {
+	const preferred = 24
+	const minimum = 8
+
+	if m.width <= 0 {
+		return preferred
+	}
+
+	for width := preferred; width >= minimum; width-- {
+		primaryLine := renderQuotaLine(account.Quota.Primary, account.Quota, "5h", width)
+		secondaryLine := renderQuotaLine(account.Quota.Secondary, account.Quota, "7d", width)
+		if maxInt(lipgloss.Width(primaryLine), lipgloss.Width(secondaryLine)) <= m.width {
+			return width
+		}
+	}
+
+	return minimum
 }
 
 func maxInt(values ...int) int {
