@@ -1,16 +1,20 @@
 # codex-auth
 
-`codex-auth` is a standalone Go TUI for switching between multiple local Codex authentication snapshots in `~/.codex`.
+`codex-auth` is a standalone terminal UI for managing multiple local Codex auth profiles in `~/.codex`.
 
-## What It Does
+It is built as a single Go binary, installs cleanly with Homebrew, auto-saves the active account if needed, and uses your terminal theme instead of shipping a hardcoded color theme.
 
-- Discovers managed accounts from `~/.codex/accounts/*.json`
-- Detects the active `~/.codex/auth.json`
-- Auto-saves the active account if it is not already managed
-- Switches accounts from a single interactive screen
-- Renames accounts inline
-- Deletes managed accounts inline
-- Shows quota immediately from local state and refreshes live data in the background
+![codex-auth screenshot](docs/assets/codex-auth-tui.png)
+
+## What It Handles
+
+- discovers managed accounts from `~/.codex/accounts/*.json`
+- reads the active account from `~/.codex/auth.json`
+- auto-saves the active account if it is not already managed
+- switches accounts from one interactive screen
+- renames accounts inline
+- deletes managed accounts inline
+- shows quota immediately and refreshes live usage in the background
 
 ## Install
 
@@ -31,12 +35,9 @@ brew install codex-auth
 
 ### GitHub Release Download
 
-Every tagged release uploads macOS tarballs to GitHub Releases:
+Download a release tarball from the [GitHub Releases page](https://github.com/Alexs7zzh/codex-auth/releases), unpack it, and move `codex-auth` onto your `PATH`.
 
-- `codex-auth_v0.1.0_darwin_arm64.tar.gz`
-- `codex-auth_v0.1.0_darwin_amd64.tar.gz`
-
-You can unpack one manually and move `codex-auth` somewhere on your `PATH`, for example:
+Example:
 
 ```bash
 tar -xzf codex-auth_v0.1.0_darwin_arm64.tar.gz
@@ -51,11 +52,21 @@ go build -o codex-auth ./cmd/codex-auth
 
 ## Usage
 
+Run:
+
 ```bash
 codex-auth
 ```
 
-## Keys
+The picker opens directly and shows:
+
+- each managed account
+- the current active account
+- quota remaining and reset times
+
+If your current `auth.json` is not already managed, `codex-auth` saves it automatically and includes it in the list.
+
+## Controls
 
 - `Up/Down` or `j/k`: move
 - `Space`: switch
@@ -64,13 +75,8 @@ codex-auth
 - `d`: delete selected managed account
 - `Esc` or `q`: close
 
-## Release Flow
+## Notes
 
-Tagging the repository with `v*` triggers [.github/workflows/release.yml](.github/workflows/release.yml), which:
-
-- runs `go test ./...`
-- builds macOS `arm64` and `amd64` tarballs
-- injects the tag into `main.version`
-- generates `checksums.txt`
-- renders a Homebrew formula file for the release
-- publishes a GitHub Release with those assets attached
+- `codex-auth` uses your terminal's ANSI theme for most of its styling.
+- If the official `codex` CLI is already running, switching accounts only affects new sessions.
+- The quota view prefers live data, but still shows the last known state immediately while refreshing.
