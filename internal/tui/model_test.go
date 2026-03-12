@@ -118,6 +118,21 @@ func TestSpaceMarksTargetAndEnterSwitchesMarkedAccount(t *testing.T) {
 	}
 }
 
+func TestNewModelStartsCursorOnCurrentAccount(t *testing.T) {
+	first := sampleAccount("first", true, false)
+	current := sampleAccount("current", true, true)
+	last := sampleAccount("last", true, false)
+
+	model := NewModel(&fakeController{}, []store.Account{first, current, last}, "")
+
+	if model.cursor != 1 {
+		t.Fatalf("expected cursor on current account at index 1, got %d", model.cursor)
+	}
+	if selected := model.selected(); selected.Key != current.Key {
+		t.Fatalf("expected current account selected, got %q", selected.Key)
+	}
+}
+
 func TestViewKeepsRowHeightAfterRefresh(t *testing.T) {
 	account := sampleAccount("a", true, true)
 	controller := &fakeController{

@@ -84,9 +84,18 @@ func NewModel(controller appController, accounts []store.Account, warning string
 		bootAccounts[i].Quota.Loading = true
 	}
 
+	cursor := 0
+	for i := range bootAccounts {
+		if bootAccounts[i].Current {
+			cursor = i
+			break
+		}
+	}
+
 	return Model{
 		controller: controller,
 		accounts:   bootAccounts,
+		cursor:     cursor,
 		input:      input,
 		warning:    warning,
 	}

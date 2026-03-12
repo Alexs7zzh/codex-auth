@@ -40,8 +40,8 @@ Download a release tarball from the [GitHub Releases page](https://github.com/Al
 Example:
 
 ```bash
-tar -xzf codex-auth_v0.2.0_darwin_arm64.tar.gz
-mv codex-auth_v0.2.0_darwin_arm64/codex-auth ~/.local/bin/codex-auth
+tar -xzf codex-auth_v0.3.0_darwin_arm64.tar.gz
+mv codex-auth_v0.3.0_darwin_arm64/codex-auth ~/.local/bin/codex-auth
 ```
 
 ### Build From Source
